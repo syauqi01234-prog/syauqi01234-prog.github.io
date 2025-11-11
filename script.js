@@ -21,7 +21,7 @@ const showError = message => updateResult(`<p class="error">${message}</p>`);
 
 // Generic function to make a request to your Vercel API proxy
 async function makeRequest(path, options = {}) {
-    const response = await fetch(`https://<https://kudosyauqi01234-proggithubio.vercel.app/>/api/${path}`, options);
+    const response = await fetch(`https://<https://vercel.com/kudos-projects-08ed5d67/kudosyauqi01234-prog.github.io/6jfeQKmWwWg1VJffeVA95VeS5jMH>/api/${path}`, options);
 
     // Handle failed requests gracefully
     if (!response.ok) {
