@@ -1,6 +1,3 @@
-// API key from VirusTotal API
-const API_KEY = "cc3c00b8268e5c123e3aa8d11465a10e805bbfacfe7a1a001df8f483504e26c2";
-
 // Utility function to get DOM elements by ID
 const getElement = id => document.getElementById(id);
 
@@ -22,26 +19,25 @@ const showLoading = message => updateResult(`
 // Displays an error message
 const showError = message => updateResult(`<p class="error">${message}</p>`);
 
-// Generic function to make authenticated API requests ro VirusTotal
-async function makeRequest(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            "x-apikey": API_KEY,
-            ...options.headers
-        }
-    });
+// Generic function to make a request to your Vercel API proxy
+async function makeRequest(path, options = {}) {
+    const response = await fetch(`https://<https://vercel.com/kudos-projects-08ed5d67/kudosyauqi01234-prog.github.io>/api/${path}`, options);
 
     // Handle failed requests gracefully
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+        let error;
+        try {
+            error = await response.json();
+        } catch {
+            error = { error: { message: response.statusText } };
+        }
         throw new Error(error.error?.message || 'Request failed!');
     }
 
     return response.json(); // Parse response JSON
 }
 
-// Handles the process of scanning a URL using VirusTotal
+// Handles the process of scanning a URL using the Vercel proxy
 async function scanURL() {
     const url = getElement('urlInput').value.trim();
     if (!url) return showError("Please enter a URL!");
@@ -55,16 +51,14 @@ async function scanURL() {
     try {
         showLoading("Submitting URL for scanning...");
 
-        const encodedUrl = encodeURIComponent(url);
-
-        // Submit URL to VirusTotal
-        const submitResult = await makeRequest("https://www.virustotal.com/api/v3/urls", {
+        // Submit URL to your proxy API
+        const submitResult = await makeRequest("scan-url", {
             method: "POST",
             headers: {
-                "accept": "application/json",
-                "content-type": "application/x-www-form-urlencoded"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             },
-            body: `url=${encodedUrl}`
+            body: JSON.stringify({ url })
         });
 
         if (!submitResult.data?.id) {
@@ -81,45 +75,12 @@ async function scanURL() {
     }
 }
 
-// Handles the process of scanning a file using VirusTotal
+// Handles the process of scanning a file (NOT SUPPORTED unless you add an api/scan-file.js on your backend!)
 async function scanFile() {
-    const file = getElement('fileInput').files[0];
-    if (!file) return showError("Please select a file!");
-    if (file.size > 32 * 1024 * 1024) return showError("File size exceeds 32MB limit.");
-
-    try {
-        showLoading("Uploading file...");
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        // Upload file to VirusTotal
-        const uploadResult = await makeRequest("https://www.virustotal.com/api/v3/files", {
-            method: "POST",
-            body: formData
-        });
-
-        if (!uploadResult.data?.id) {
-            throw new Error("Failed to get file ID!");
-        }
-
-        // Delay before polling for analysis results
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        showLoading("Getting scan results...");
-        const analysisResult = await makeRequest(`https://www.virustotal.com/api/v3/analyses/${uploadResult.data.id}`);
-
-        if (!analysisResult.data?.id) {
-            throw new Error("Failed to get analysis results!");
-        }
-
-        await pollAnalysisResults(analysisResult.data.id, file.name);
-    } catch (error) {
-        showError(`Error: ${error.message}`);
-    }
+    showError("File scan not implemented for proxy backend yet. Ask for file scan code if you want this feature.");
 }
 
-// Polls VirusTotal for analysis results, retrying until complete or timeout
+// Polls for analysis results, retrying until complete or timeout
 async function pollAnalysisResults(analysisId, fileName = '') {
     const maxAttempts = 20;
     let attempts = 0;
@@ -129,13 +90,21 @@ async function pollAnalysisResults(analysisId, fileName = '') {
         try {
             showLoading(`Analyzing${fileName ? ` ${fileName}` : ''}... (${((maxAttempts - attempts) * interval / 1000).toFixed(0)}s remaining)`);
 
-            const report = await makeRequest(`https://www.virustotal.com/api/v3/analyses/${analysisId}`);
-            const status = report.data?.attributes?.status;
+            // Poll proxy for analysis result
+            const report = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            const result = await report.json();
+            const status = result.data?.attributes?.status;
 
             if (!status) throw new Error("Invalid analysis response!");
 
             if (status === "completed") {
-                showFormattedResult(report);
+                showFormattedResult(result);
                 break;
             }
 
@@ -179,7 +148,7 @@ function showFormattedResult(data) {
         return acc;
     }, {});
 
-    // Determine overall vardict
+    // Determine overall verdict
     const verdict = stats.malicious > 0 ? "Malicious" : stats.suspicious > 0 ? "Suspicious" : "Safe";
     const verdictClass = stats.malicious > 0 ? "malicious" : stats.suspicious > 0 ? "suspicious" : "safe";
 
