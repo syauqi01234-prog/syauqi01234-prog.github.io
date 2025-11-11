@@ -1,5 +1,5 @@
 // API key from VirusTotal API
-const API_KEY = "YOUR_API_KEY";
+const API_KEY = "cc3c00b8268e5c123e3aa8d11465a10e805bbfacfe7a1a001df8f483504e26c2";
 
 // Utility function to get DOM elements by ID
 const getElement = id => document.getElementById(id);
